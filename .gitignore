@@ -1,0 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches e temporários de editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Imagens geradas temporárias (se salvas na raiz)
+*.png
+
+# Material confidencial de organizadores (oculto para os alunos no GitHub)
+organizador/
+
+# Foxglove (apenas local)
+foxglove/
+bridge_foxglove.py

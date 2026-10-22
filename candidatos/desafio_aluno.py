@@ -312,7 +312,27 @@ def safety_state_machine_ebs(current_state: str, distance_to_midline: float,
     Retorno:
     - (novo_estado, ebs_active): Tuple[str, bool]
       Exemplo: ("AS_DRIVING", False) ou ("AS_EMERGENCY", True)
+    
+    Pseudocodigo:
+    if estadoAtaul == "AAS_EMERGENCY"
+        then ("AS_EMERGENCY", True)
+
+    if estadoAtual == "AS_READY":
+        if comando_arranque == True:
+            then ("AS_DRIVING", False)
+        then (AS_READY, True)
+
+    if estado_atual == "AS_DRIVING":
+        if distancia_ao_centro > 2.0 OU cones_visiveis == 0:
+            then ("AS_EMERGENCY", True)
+
+        then ("AS_DRIVING", False)
+
+    return (estado_atual, False)
+    
     """
+
+
     # TODO: Implementar a máquina de estados e o EBS
     raise NotImplementedError("Tarefa 5 por implementar!")
 

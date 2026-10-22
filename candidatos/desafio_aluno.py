@@ -28,27 +28,33 @@ from contrato_dados import CarState, ASState
 # TAREFA 1 [AS - PERCEÇÃO]: Filtragem, Separação e Vetorização de Cones
 # =============================================================================
 def filtrar_e_classificar_cones(detections: List[Dict]) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Objetivo:
-    Receber uma lista de deteções de cones em formato de dicionários brutos:
-      [{'x': float, 'y': float, 'color': 'blue'|'yellow'|'orange'|'unknown', 'confidence': float}, ...]
-    
-    Regras de Filtragem e Vetorização:
-    1. Descartar deteções com 'confidence' inferior a 0.60 (ruído de sensor / falsos positivos).
-    2. Ignorar cones que não sejam das cores da pista ('blue' e 'yellow'), descartando 'unknown'.
-    3. Separar os cones válidos em dois arrays numpy de shape (N, 2):
-       - cones_azuis: Cones do limite esquerdo da pista [[x, y], ...]
-       - cones_amarelos: Cones do limite direito da pista [[x, y], ...]
-    4. Ordenação por Proximidade:
-       - Cada array (azuis e amarelos) DEVE vir obrigatoriamente ordenado por ordem crescente
-         de distância à origem (sensor/veículo, sqrt(x^2 + y^2)), do mais próximo ao mais distante.
-       
-    Retorno:
-    - (cones_azuis, cones_amarelos): tuplo com dois arrays numpy de shape (N, 2) e (M, 2).
-      Se não houver cones de uma das cores, retornar np.empty((0, 2)).
-    """
     # TODO: Implementar a filtragem, separação e ordenação vetorizada de cones
-    raise NotImplementedError("Tarefa 1 por implementar!")
+    """Filtra os cones e ordena cada cor por distância crescente à origem."""
+    grupos = {"blue": [], "yellow": []}
+
+    for detection in detections:
+        if detection["confidence"] < 0.60:
+            continue
+
+        grupo = grupos.get(detection["color"])
+        if grupo is not None:
+            grupo.append((detection["x"], detection["y"]))
+
+    def ordenar(pontos: list) -> np.ndarray:
+        if not pontos:
+            return np.empty((0, 2), dtype=float)
+
+        cones = np.asarray(pontos, dtype=float)
+
+        if len(cones) > 1:
+            # x² + y² mantém a ordem das distâncias sem calcular raízes.
+            distancias_quadradas = np.einsum("ij,ij->i", cones, cones)
+            cones = cones[np.argsort(distancias_quadradas)]
+
+        return cones
+
+    return ordenar(grupos["blue"]), ordenar(grupos["yellow"])
+
 
 
 # =============================================================================

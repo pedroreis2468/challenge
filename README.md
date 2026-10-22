@@ -145,16 +145,66 @@ challenge/
 >
 > Antes do final do desafio, preencham a lista abaixo assinalando com `[X]` quais as tarefas que concluíram e pretendem que a equipa técnica da FSUminho teste e avalie.
 
-- [ ] **Tarefa 1:** Filtragem, Classificação e Vetorização de Cones (Perceção)
-- [ ] **Tarefa 2:** Extração do Caminho Central / Midline (Planeamento)
-- [ ] **Tarefa 3:** Controlador Pure Pursuit & Pedais (Controlo Lateral & Longitudinal)
+- [X] **Tarefa 1:** Filtragem, Classificação e Vetorização de Cones (Perceção)
+- [X] **Tarefa 2:** Extração do Caminho Central / Midline (Planeamento)
+- [X] **Tarefa 3:** Controlador Pure Pursuit & Pedais (Controlo Lateral & Longitudinal)
 - [ ] **Tarefa 4:** Telemetria e Análise de Dinâmica - Slip & Wheel Spin/Lock (ESW)
-- [ ] **Tarefa 5:** Safety State Machine & EBS Watchdog (ESW)
+- [X] **Tarefa 5:** Safety State Machine & EBS Watchdog (ESW)
 - [ ] **Tarefa Bónus 6 (Opcional):** Supervisão de Fusão Sensorial GPS vs Odometria (ESW)
 
 ### 📝 Notas Adicionais para os Avaliadores:
 
 *(Espaço para cada um explicar opções de implementação, abordagens seguidas ou casos particulares)*
+
+## Utilização de Inteligência Artificial
+
+Ferramenta utilizada: ChatGPT/Codex.
+
+Utilizei IA para interpretar pseudocódigos, gerar implementações e realizar ajustes ao código
+
+### Tarefa 1 — Filtragem de cones
+
+Apresentei os requisitos de filtragem, separação por cor e ordenação
+por distância. Depois solicitei uma versão que reduzisse o processamento.
+
+A IA contribuiu com a implementação em NumPy e com a utilização das
+distâncias ao quadrado para evitar raízes quadradas na ordenação.
+
+### Tarefa 2 — Trajetória central
+
+Implementei o pseudocódigo e, posteriormente,
+na sua implementação sem variáveis globais.
+
+A IA contribuiu com o emparelhamento geométrico dos cones e com a estimativa da
+trajetória quando apenas um dos lados está visível.
+
+### Tarefa 3 — Pure Pursuit e pedais
+
+Apresentei o meu pseudocódigo para determinar a velocidade desejada,
+antecipar curvas, controlar acelerador e travão e suavizar os comandos.
+
+Solicitei à IA a análise desse raciocínio e a implementação.
+Posteriormente pedi a remoção das variáveis globais.
+
+A IA contribuiu com os cálculos de direção, curvatura, velocidade
+desejada, antecipação de travagem e suavização dos pedais.
+
+### Tarefa 5 — Máquina de estados e EBS
+
+Enviei um pseudocódigo inicial à IA que adaptei-o no ficheiro
+do projeto. Depois pedi a implementação com base nessa versão,
+sem utilizar variáveis globais.
+
+A IA contribuiu com a implementação das transições, a correção
+do nome AS_EMERGENCY e a manutenção do EBS desligado durante
+a espera em AS_READY.
+
+## Registo dos pedidos
+
+Os pedidos acima estão resumidos por tarefa. Incluem apoio na
+elaboração do pseudocódigo, implementação, otimização e correção
+do código.
+
 ------------------------------------------------------------------------------------------------------
 
 ---

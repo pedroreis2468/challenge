@@ -205,8 +205,51 @@ def analisar_dinamica_veiculo(telemetria: Dict[str, float]) -> Dict[str, Any]:
          'avisos': List[str]
       }
     """
-    # TODO: Implementar a análise de telemetria veicular e lista de avisos
-    raise NotImplementedError("Tarefa 4 por implementar!")
+    global _wheel_lock_consecutive_count
+
+    v_car = telemetria['est_car_velocity']
+
+    # 1. Slip Ratio das rodas traseiras motrizes (e das dianteiras, para o ponto 3)
+    if v_car <= 1.0:
+        rl_slip = 0.0
+        rr_slip = 0.0
+        fl_slip = 0.0
+        fr_slip = 0.0
+    else:
+        rl_slip = (telemetria['rl_wheel_speed'] - v_car) / v_car
+        rr_slip = (telemetria['rr_wheel_speed'] - v_car) / v_car
+        fl_slip = (telemetria['fl_wheel_speed'] - v_car) / v_car
+        fr_slip = (telemetria['fr_wheel_speed'] - v_car) / v_car
+
+    resultado = {
+        'rl_slip': rl_slip,
+        'rr_slip': rr_slip,
+        'wheel_spin_detected': False,
+        'wheel_lock_detected': False,
+        'avisos': [],
+    }
+
+    # 2. Wheel Spin: acelerador ativo e alguma roda traseira a patinar
+    if telemetria['apps'] > 10.0 and (rl_slip > 0.15 or rr_slip > 0.15):
+        resultado['wheel_spin_detected'] = True
+        resultado['avisos'].append('AVISO_WHEEL_SPIN')
+
+    # 3. Wheel Lock: travão ativo e alguma roda dianteira bloqueada,
+    #    confirmado só ao fim de 3 amostras consecutivas (debounce)
+    if telemetria['brake_pressure'] > 5.0 and (fl_slip < -0.20 or fr_slip < -0.20):
+        _wheel_lock_consecutive_count += 1
+        if _wheel_lock_consecutive_count >= 3:
+            resultado['wheel_lock_detected'] = True
+            resultado['avisos'].append('AVISO_WHEEL_LOCK')
+    else:
+        _wheel_lock_consecutive_count = 0
+
+    # 4. Aceleração lateral em G
+    resultado['lateral_g'] = telemetria['accel_y'] / 9.81
+    if abs(resultado['lateral_g']) > 1.4:
+        resultado['avisos'].append('AVISO_HIGH_LATERAL_G')
+
+    return resultado
 
 
 # =============================================================================

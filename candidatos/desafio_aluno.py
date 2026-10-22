@@ -27,6 +27,27 @@ from contrato_dados import CarState, ASState
 # =============================================================================
 # TAREFA 1 [AS - PERCEÇÃO]: Filtragem, Separação e Vetorização de Cones
 # =============================================================================
+def ordenar_por_distancia(cones: List[Dict]) -> List[List[float]]:
+    """
+    Recebe uma lista de cones (dicionários com 'x' e 'y'), acrescenta a cada um
+    o campo 'distancia' = sqrt(x^2 + y^2) e devolve as coordenadas [x, y]
+    ordenadas do cone mais próximo para o mais distante.
+    """
+    com_distancia = []
+    for cone in cones:
+        # Cópia para não alterar os dicionários originais do sensor
+        novo = {'x': cone['x'], 'y': cone['y']}
+        novo['distancia'] = np.sqrt(cone['x'] ** 2 + cone['y'] ** 2)
+        com_distancia.append(novo)
+
+    com_distancia.sort(key=lambda c: c['distancia'])
+
+    coordenadas = []
+    for cone in com_distancia:
+        coordenadas.append([cone['x'], cone['y']])
+    return coordenadas
+
+
 def filtrar_e_classificar_cones(detections: List[Dict]) -> Tuple[np.ndarray, np.ndarray]:
     """
     Objetivo:
@@ -47,8 +68,24 @@ def filtrar_e_classificar_cones(detections: List[Dict]) -> Tuple[np.ndarray, np.
     - (cones_azuis, cones_amarelos): tuplo com dois arrays numpy de shape (N, 2) e (M, 2).
       Se não houver cones de uma das cores, retornar np.empty((0, 2)).
     """
-    # TODO: Implementar a filtragem, separação e ordenação vetorizada de cones
-    raise NotImplementedError("Tarefa 1 por implementar!")
+    azuis = []
+    amarelos = []
+
+    for cone in detections:
+        # 1. Descartar ruído de sensor
+        if cone['confidence'] >= 0.60:
+            # 2. e 3. Separar por cor (o resto, como 'unknown', é ignorado)
+            if cone['color'] == 'blue':
+                azuis.append(cone)
+            elif cone['color'] == 'yellow':
+                amarelos.append(cone)
+
+    # 4. Ordenar cada lado do mais próximo para o mais distante
+    # 5. reshape garante shape (0, 2) quando não há cones dessa cor
+    cones_azuis = np.array(ordenar_por_distancia(azuis)).reshape(-1, 2)
+    cones_amarelos = np.array(ordenar_por_distancia(amarelos)).reshape(-1, 2)
+
+    return cones_azuis, cones_amarelos
 
 
 # =============================================================================

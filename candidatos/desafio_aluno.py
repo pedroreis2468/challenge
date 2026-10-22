@@ -47,8 +47,45 @@ def filtrar_e_classificar_cones(detections: List[Dict]) -> Tuple[np.ndarray, np.
     - (cones_azuis, cones_amarelos): tuplo com dois arrays numpy de shape (N, 2) e (M, 2).
       Se não houver cones de uma das cores, retornar np.empty((0, 2)).
     """
-    # TODO: Implementar a filtragem, separação e ordenação vetorizada de cones
-    raise NotImplementedError("Tarefa 1 por implementar!")
+    cones_azuis_list = []
+    cones_amarelos_list = []
+
+    for det in detections:
+        # 1. Filtrar por confidence
+        if det['confidence'] < 0.60:
+            continue
+
+        # 2. Filtrar por cor (apenas 'blue' e 'yellow')
+        if det['color'] not in ('blue', 'yellow'):
+            continue
+
+        # 3. Criar o tuplo (x, y)
+        ponto = (det['x'], det['y'])
+
+        # 4. Calcular distância à origem e acumular na lista correta
+        dist = (det['x'] ** 2 + det['y'] ** 2) ** 0.5
+
+        if det['color'] == 'blue':
+            cones_azuis_list.append((dist, ponto))
+        else:
+            cones_amarelos_list.append((dist, ponto))
+
+    # Ordenar por distância crescente à origem
+    cones_azuis_list.sort(key=lambda t: t[0])
+    cones_amarelos_list.sort(key=lambda t: t[0])
+
+    # Construir arrays numpy de shape (N, 2)
+    if cones_azuis_list:
+        cones_azuis = np.array([p for _, p in cones_azuis_list])
+    else:
+        cones_azuis = np.empty((0, 2))
+
+    if cones_amarelos_list:
+        cones_amarelos = np.array([p for _, p in cones_amarelos_list])
+    else:
+        cones_amarelos = np.empty((0, 2))
+
+    return (cones_azuis, cones_amarelos)
 
 
 # =============================================================================

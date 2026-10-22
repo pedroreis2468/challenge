@@ -13,6 +13,7 @@ Instruções:
 
 import numpy as np
 from typing import List, Dict, Tuple, Any
+from math import atan, cos, isfinite, sin, sqrt, tan
 import sys
 import os
 # Configuração automática de caminhos para a arquitetura do projeto
@@ -117,8 +118,108 @@ def controlador_pure_pursuit(car_state: CarState, waypoints: np.ndarray,
       * apps_percent: float entre 0.0% e 100.0%
       * brake_bar: float entre 0.0 bar e 80.0 bar
     """
-    # TODO: Implementar o Controlo Lateral e Longitudinal do monolugar
-    raise NotImplementedError("Tarefa 3 por implementar!")
+    # Parâmetros locais do simulador e valores iniciais de afinação (SI).
+    dt = 0.035
+    velocidade_maxima = 80.0 / 3.6
+    aceleracao_maxima = 4.2
+    travagem_maxima = 8.5
+    aceleracao_lateral_maxima = 5.0
+    travagem_planeada = 4.0
+    jerk_subida = 8.0
+    jerk_descida = 30.0
+
+    def parar() -> Tuple[float, float, float]:
+        car_state._pp_aceleracao_anterior = None
+        return 0.0, 0.0, 80.0
+
+    pontos = np.asarray(waypoints, dtype=float)
+    if (pontos.ndim != 2 or pontos.shape[1] != 2 or len(pontos) == 0
+            or not np.isfinite(pontos).all()):
+        return parar()
+
+    if (not all(map(isfinite, (car_state.x, car_state.y, car_state.yaw,
+                              car_state.v, car_state.steer,
+                              lookahead_distance, wheelbase)))
+            or lookahead_distance <= 0.0 or wheelbase <= 0.0):
+        return parar()
+
+    # Os waypoints são globais. Projetar apenas o necessário no rumo do carro.
+    relativos = pontos - (car_state.x, car_state.y)
+    c, s = cos(car_state.yaw), sin(car_state.yaw)
+    frente = relativos[:, 0] * c + relativos[:, 1] * s
+    indices = np.flatnonzero(frente > 1e-8)
+    if indices.size == 0:
+        return parar()
+
+    distancias2 = np.einsum("ij,ij->i", relativos, relativos)
+    # A proximidade ao lookahead exige distâncias reais, não ao quadrado.
+    distancias_frente = np.sqrt(distancias2[indices])
+    alvo = indices[np.argmin(np.abs(distancias_frente - lookahead_distance))]
+    lateral = -relativos[alvo, 0] * s + relativos[alvo, 1] * c
+    curvatura_mira = 2.0 * lateral / distancias2[alvo]
+    delta = max(-0.50, min(0.50, atan(wheelbase * curvatura_mira)))
+
+    # a_lateral = v² * |curvatura|. Considerar também o volante ainda aplicado.
+    curvatura_atual = max(abs(curvatura_mira),
+                         abs(tan(car_state.steer) / wheelbase))
+    velocidade2 = velocidade_maxima ** 2
+    if curvatura_atual > 1e-8:
+        velocidade2 = min(velocidade2, aceleracao_lateral_maxima / curvatura_atual)
+
+    # Preservar a ordem da trajetória, incluindo curvas que saem do semiplano
+    # frontal. Remover só repetições consecutivas antes de calcular curvaturas.
+    caminho = pontos[indices[0]:]
+    segmentos = np.diff(caminho, axis=0)
+    manter = np.concatenate(([True], np.any(segmentos != 0.0, axis=1)))
+    caminho = caminho[manter]
+    if len(caminho) >= 3:
+        segmentos = np.diff(caminho, axis=0)
+        comprimentos = np.hypot(segmentos[:, 0], segmentos[:, 1])
+        a, b = segmentos[:-1], segmentos[1:]
+        cordas = caminho[2:] - caminho[:-2]
+        denominador = (comprimentos[:-1] * comprimentos[1:]
+                       * np.hypot(cordas[:, 0], cordas[:, 1]))
+        cruzamento = np.abs(a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0])
+        curvaturas = np.divide(2.0 * cruzamento, denominador,
+                               out=np.full_like(denominador, np.inf),
+                               where=denominador > 1e-12)
+        limites2 = np.divide(aceleracao_lateral_maxima, curvaturas,
+                             out=np.full_like(curvaturas, velocidade2),
+                             where=curvaturas > 1e-8)
+
+        # Distância ao longo do caminho até ao centro de cada trio de pontos.
+        distancias_curvas = (sqrt(distancias2[indices[0]])
+                             + np.cumsum(comprimentos)[:-1])
+        # Margem de 1 m + 0.3 s de avanço para acomodar resposta e suavização.
+        margem = 1.0 + 0.3 * max(car_state.v, 0.0)
+        distancias_travagem = np.maximum(distancias_curvas - margem, 0.0)
+        # v_agora² <= v_curva² + 2 * desaceleração * distância.
+        limites2 += 2.0 * travagem_planeada * distancias_travagem
+        velocidade2 = min(velocidade2, float(np.min(limites2)))
+
+    erro = sqrt(max(velocidade2, 0.0)) - max(car_state.v, 0.0)
+    # Zona morta contínua para evitar alternância dos pedais perto do alvo.
+    if erro > 0.15:
+        aceleracao = min(aceleracao_maxima, 1.5 * (erro - 0.15))
+    elif erro < -0.15:
+        aceleracao = max(-travagem_maxima, 2.0 * (erro + 0.15))
+    else:
+        aceleracao = 0.0
+
+    # Cada veículo guarda a sua memória de suavização no próprio CarState.
+    # O simulador reutiliza este objeto entre ciclos.
+    anterior = getattr(car_state, "_pp_aceleracao_anterior", None)
+    if anterior is not None:
+        if anterior * aceleracao < 0.0:
+            anterior = 0.0  # Cortar o pedal anterior antes de trocar de sinal.
+        variacao = aceleracao - anterior
+        aceleracao = anterior + max(-jerk_descida * dt,
+                                    min(jerk_subida * dt, variacao))
+
+    car_state._pp_aceleracao_anterior = aceleracao
+    acelerador = 100.0 * max(aceleracao, 0.0) / aceleracao_maxima
+    travao = 80.0 * max(-aceleracao, 0.0) / travagem_maxima
+    return float(delta), float(acelerador), float(travao)
 
 
 # Estado persistente para filtro temporal (debounce de Wheel Lock)

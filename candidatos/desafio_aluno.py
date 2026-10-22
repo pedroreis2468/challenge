@@ -82,8 +82,141 @@ def calcular_midline_trajetoria(cones_azuis: np.ndarray, cones_amarelos: np.ndar
     Retorno:
     - waypoints: numpy array de shape (K, 2) contendo a lista ordenada de pontos centrais [[x, y], ...]
     """
-    # TODO: Implementar o cálculo da trajetória central (midline)
-    raise NotImplementedError("Tarefa 2 por implementar!")
+    largura = 3.2
+    distancia_maxima = 6.0
+
+    def ordenar(cones):
+        pontos = np.asarray(cones, dtype=float)
+        if pontos.size == 0:
+            return np.empty((0, 2))
+        if pontos.ndim != 2 or pontos.shape[1] != 2 or not np.isfinite(pontos).all():
+            return np.empty((0, 2))
+
+        _, indices = np.unique(pontos, axis=0, return_index=True)
+        pontos = pontos[np.sort(indices)]
+        if len(pontos) < 3:
+            return pontos
+
+        # Ligar vizinhos às duas extremidades, evitando saltos entre troços.
+        ordem = [0]
+        usados = np.zeros(len(pontos), dtype=bool)
+        usados[0] = True
+
+        while len(ordem) < len(pontos):
+            esquerda = pontos - pontos[ordem[0]]
+            direita = pontos - pontos[ordem[-1]]
+            dist_esquerda = np.einsum("ij,ij->i", esquerda, esquerda)
+            dist_direita = np.einsum("ij,ij->i", direita, direita)
+            distancias = np.minimum(dist_esquerda, dist_direita)
+            distancias[usados] = np.inf
+            proximo = int(np.argmin(distancias))
+
+            if distancias[proximo] > distancia_maxima ** 2:
+                return np.empty((0, 2))
+            if dist_esquerda[proximo] < dist_direita[proximo]:
+                ordem.insert(0, proximo)
+            else:
+                ordem.append(proximo)
+            usados[proximo] = True
+
+        # Preservar o sentido sugerido pela ordem de entrada.
+        sentido = pontos[ordem[-1]] - pontos[ordem[0]]
+        if np.dot(sentido, pontos[-1] - pontos[0]) < 0.0:
+            ordem.reverse()
+        return pontos[ordem]
+
+    def direcoes(pontos):
+        tangentes = np.gradient(pontos, axis=0)
+        tamanhos = np.hypot(tangentes[:, 0], tangentes[:, 1])
+        if np.any(tamanhos < 1e-8):
+            return None, None
+        tangentes = tangentes / tamanhos[:, None]
+        normais = np.column_stack((-tangentes[:, 1], tangentes[:, 0]))
+        return tangentes, normais
+
+    azuis = ordenar(cones_azuis)
+    amarelos = ordenar(cones_amarelos)
+
+    # Usar o lado com mais informação para dar continuidade ao caminho.
+    if len(azuis) >= len(amarelos):
+        base, outros, lado = azuis, amarelos, -1.0
+    else:
+        base, outros, lado = amarelos, azuis, 1.0
+
+    if len(base) < 2:
+        return np.empty((0, 2))
+
+    tangentes, normais = direcoes(base)
+    if tangentes is None:
+        return np.empty((0, 2))
+
+    if len(outros) > 0:
+        diferencas = outros[None, :, :] - base[:, None, :]
+        distancias2 = np.einsum("ijk,ijk->ij", diferencas, diferencas)
+        proximos = np.argmin(distancias2, axis=1)
+        perto = distancias2[np.arange(len(base)), proximos] <= 5.0 ** 2
+        if not np.any(perto):
+            return np.empty((0, 2))
+
+        vetores = outros[proximos] - base
+        posicao_lateral = np.einsum("ij,ij->i", vetores, normais)
+        if np.median(posicao_lateral[perto]) * lado < 0.0:
+            base = base[::-1]
+            tangentes, normais = direcoes(base)
+            distancias2 = distancias2[::-1]
+
+        # Ambos os limites devem seguir o mesmo sentido.
+        if len(outros) >= 2:
+            tangentes_outros, _ = direcoes(outros)
+            if tangentes_outros is None:
+                return np.empty((0, 2))
+            proximos = np.argmin(distancias2, axis=0)
+            alinhamento = np.einsum("ij,ij->i", tangentes_outros, tangentes[proximos])
+            if np.median(alinhamento) < 0.0:
+                outros = outros[::-1]
+                distancias2 = distancias2[:, ::-1]
+
+    # Com um só lado, a ordem de entrada tem de indicar a progressão.
+    waypoints = base + lado * (largura / 2.0) * normais
+    ultimo = -1
+    pares_validos = 0
+
+    for i in range(len(base)):
+        if len(outros) == 0:
+            break
+
+        vetores = outros - base[i]
+        transversal = lado * (vetores @ normais[i])
+        longitudinal = np.abs(vetores @ tangentes[i])
+        candidatos = (
+            (np.arange(len(outros)) > ultimo)
+            & (transversal >= 2.0)
+            & (transversal <= 4.5)
+            & (longitudinal <= 1.5)
+            & (distancias2[i] <= 5.0 ** 2)
+        )
+        if not np.any(candidatos):
+            continue
+
+        erros = (transversal - largura) ** 2 + longitudinal ** 2
+        erros[~candidatos] = np.inf
+        j = int(np.argmin(erros))
+        waypoints[i] = (base[i] + outros[j]) / 2.0
+        ultimo = j
+        pares_validos += 1
+
+    if len(outros) > 0 and pares_validos == 0:
+        return np.empty((0, 2))
+
+    passos = np.diff(waypoints, axis=0)
+    distancias2 = np.einsum("ij,ij->i", passos, passos)
+    if np.any(distancias2 > distancia_maxima ** 2):
+        return np.empty((0, 2))
+
+    waypoints = waypoints[np.concatenate(([True], distancias2 > 1e-8))]
+    if len(waypoints) < 2:
+        return np.empty((0, 2))
+    return waypoints
 
 
 # =============================================================================

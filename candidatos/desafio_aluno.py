@@ -112,8 +112,82 @@ def calcular_midline_trajetoria(cones_azuis: np.ndarray, cones_amarelos: np.ndar
     Retorno:
     - waypoints: numpy array de shape (K, 2) contendo a lista ordenada de pontos centrais [[x, y], ...]
     """
-    # TODO: Implementar o cálculo da trajetória central (midline)
-    raise NotImplementedError("Tarefa 2 por implementar!")
+
+    """
+    tarefas:
+    agrupar cones em pares de cones azuis e amarelos
+      encontrar par de cones azuis e amarelos que estão mais próximos um do outro  
+         percorrer lista dos cones 
+            encontrar o par correspondente
+            
+      filtrar edge cases: cones que nao sao pares
+      distancia maxima entre cones do mesmo par = 4 metros
+   para cada par calcular o ponto médio
+      se nao houver par(cones so de um dos lados)
+         se cones forem amarelos= cones lado direito, centro da pista = 1.5 a esquerda dos cones amarelos 
+         se cones forem azuis= cones lado esquerdo, centro da pista = 1.5 a direita dos cones azuis 
+    ordenar os pontos médios por distância à origem  
+    retornar pontos médios
+    """
+
+    MAX_PAIR_DIST = 4.0   # distância máxima válida entre cones do mesmo par (metros)
+    HALF_TRACK = 1.5      # estimativa de metade da largura da pista (metros)
+
+    midpoints = []
+
+    # agrupar cones em pares de cones azuis e amarelos
+    if len(cones_azuis) > 0 and len(cones_amarelos) > 0:
+        used_amarelos = set()
+        pares = []
+
+        # encontrar par de cones azuis e amarelos que estão mais próximos um do outro
+        #   percorrer lista dos cones
+        for azul in cones_azuis:
+            melhor_dist = float('inf')
+            melhor_idx = -1
+
+            #   encontrar o par correspondente
+            for idx, amarelo in enumerate(cones_amarelos):
+                if idx in used_amarelos:
+                    continue
+                dist = np.sqrt((azul[0] - amarelo[0]) ** 2 + (azul[1] - amarelo[1]) ** 2)
+                if dist < melhor_dist:
+                    melhor_dist = dist
+                    melhor_idx = idx
+
+            # filtrar edge cases: cones que nao sao pares
+            # distancia maxima entre cones do mesmo par = 4 metros
+            if melhor_idx != -1 and melhor_dist <= MAX_PAIR_DIST:
+                pares.append((azul, cones_amarelos[melhor_idx]))
+                used_amarelos.add(melhor_idx)
+
+        # para cada par calcular o ponto médio
+        for azul, amarelo in pares:
+            midpoints.append((azul + amarelo) / 2.0)
+
+    # se nao houver par (cones so de um dos lados)
+    if not midpoints:
+        # se cones forem amarelos = cones lado direito,
+        # centro da pista = 1.5 a esquerda dos cones amarelos
+        if len(cones_amarelos) > 0:
+            for amarelo in cones_amarelos:
+                midpoints.append(np.array([amarelo[0] - HALF_TRACK, amarelo[1]]))
+
+        # se cones forem azuis = cones lado esquerdo,
+        # centro da pista = 1.5 a direita dos cones azuis
+        elif len(cones_azuis) > 0:
+            for azul in cones_azuis:
+                midpoints.append(np.array([azul[0] - HALF_TRACK, azul[1]]))
+
+        # sem cones de qualquer lado → não há estimativa segura
+        else:
+            return np.empty((0, 2))
+
+    # ordenar os pontos médios por distância à origem
+    midpoints.sort(key=lambda p: np.sqrt(p[0] ** 2 + p[1] ** 2))
+
+    # retornar pontos médios
+    return np.array(midpoints)
 
 
 # =============================================================================

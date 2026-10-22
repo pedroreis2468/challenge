@@ -28,27 +28,61 @@ from contrato_dados import CarState, ASState
 # TAREFA 1 [AS - PERCEÇÃO]: Filtragem, Separação e Vetorização de Cones
 # =============================================================================
 def filtrar_e_classificar_cones(detections: List[Dict]) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Objetivo:
-    Receber uma lista de deteções de cones em formato de dicionários brutos:
-      [{'x': float, 'y': float, 'color': 'blue'|'yellow'|'orange'|'unknown', 'confidence': float}, ...]
     
-    Regras de Filtragem e Vetorização:
-    1. Descartar deteções com 'confidence' inferior a 0.60 (ruído de sensor / falsos positivos).
-    2. Ignorar cones que não sejam das cores da pista ('blue' e 'yellow'), descartando 'unknown'.
-    3. Separar os cones válidos em dois arrays numpy de shape (N, 2):
-       - cones_azuis: Cones do limite esquerdo da pista [[x, y], ...]
-       - cones_amarelos: Cones do limite direito da pista [[x, y], ...]
-    4. Ordenação por Proximidade:
-       - Cada array (azuis e amarelos) DEVE vir obrigatoriamente ordenado por ordem crescente
-         de distância à origem (sensor/veículo, sqrt(x^2 + y^2)), do mais próximo ao mais distante.
+   #  """
+   #  Objetivo:
+   #  Receber uma lista de deteções de cones em formato de dicionários brutos:
+   #    [{'x': float, 'y': float, 'color': 'blue'|'yellow'|'orange'|'unknown', 'confidence': float}, ...]
+    
+   #  Regras de Filtragem e Vetorização:
+   #  1. Descartar deteções com 'confidence' inferior a 0.60 (ruído de sensor / falsos positivos).
+   #  2. Ignorar cones que não sejam das cores da pista ('blue' e 'yellow'), descartando 'unknown'.
+   #  3. Separar os cones válidos em dois arrays numpy de shape (N, 2):
+   #     - cones_azuis: Cones do limite esquerdo da pista [[x, y], ...]
+   #     - cones_amarelos: Cones do limite direito da pista [[x, y], ...]
+   #  4. Ordenação por Proximidade:
+   #     - Cada array (azuis e amarelos) DEVE vir obrigatoriamente ordenado por ordem crescente
+   #       de distância à origem (sensor/veículo, sqrt(x^2 + y^2)), do mais próximo ao mais distante.
        
-    Retorno:
-    - (cones_azuis, cones_amarelos): tuplo com dois arrays numpy de shape (N, 2) e (M, 2).
-      Se não houver cones de uma das cores, retornar np.empty((0, 2)).
-    """
-    # TODO: Implementar a filtragem, separação e ordenação vetorizada de cones
-    raise NotImplementedError("Tarefa 1 por implementar!")
+   #  Retorno:
+   #  - (cones_azuis, cones_amarelos): tuplo com dois arrays numpy de shape (N, 2) e (M, 2).
+   #    Se não houver cones de uma das cores, retornar np.empty((0, 2)).
+   #  """
+   
+      azuis = []
+      amarelos = []
+
+      # Recolhe apenas deteções válidas e separa-as pela cor da pista.
+      for deteccao in detections or []:
+         if not isinstance(deteccao, dict):
+            continue
+
+         try:
+            confidence = float(deteccao.get("confidence", 0.0))
+            x = float(deteccao["x"])
+            y = float(deteccao["y"])
+         except (TypeError, ValueError, KeyError):
+            continue
+
+         if (not np.isfinite(confidence) or confidence < 0.60 or
+               not np.isfinite(x) or not np.isfinite(y)):
+            continue
+
+         if deteccao.get("color") == "blue":
+            azuis.append((x, y))
+         elif deteccao.get("color") == "yellow":
+            amarelos.append((x, y))
+
+      def ordenar_por_distancia(cones: List[Tuple[float, float]]) -> np.ndarray:
+         if not cones:
+            return np.empty((0, 2), dtype=float)
+
+         array = np.asarray(cones, dtype=float).reshape(-1, 2)
+         # O quadrado da distância preserva a ordem e evita uma raiz desnecessária.
+         ordem = np.argsort(np.sum(array * array, axis=1), kind="stable")
+         return array[ordem]
+
+      return ordenar_por_distancia(azuis), ordenar_por_distancia(amarelos)
 
 
 # =============================================================================
@@ -206,6 +240,45 @@ def safety_state_machine_ebs(current_state: str, distance_to_midline: float,
     - (novo_estado, ebs_active): Tuple[str, bool]
       Exemplo: ("AS_DRIVING", False) ou ("AS_EMERGENCY", True)
     """
+    #  novo_estado=current_state;
+    #  ebs_active=False;
+     
+    #   if curreent satge == "AS EMERGENCY " then { novo_estado=AS_EMERGENCY; ebs_active=True;}
+    #   else if current_state == "AS_READY" then { 
+    #      if(mission_start_cmd == True) then {
+    #         novo_estado="AS Driving ";
+    #         ebs_active=False;
+    #      }else{
+    #         nov0_estado=current_state;
+    #         ebs_active=False;
+    #      }
+    #   }
+    #  else if(current_state == "AS_DRIVING"){
+    #      if( distance_to_midline >2.0 || cones_seen == 0) then novo_estado="AS EMERGENCY"; ebs_active=True 
+    #      else novo_estado=current_state; ebs_active=False ;
+    #  }
+
+    #  return novo_estado,ebs_active;
+
+
+    if current_state == "AS_EMERGENCY":
+        return "AS_EMERGENCY", True
+
+    novo_estado = current_state
+    ebs_active = False
+
+    if current_state == "AS_READY":
+        if mission_start_cmd:
+            novo_estado = "AS_DRIVING"
+
+    elif current_state == "AS_DRIVING":
+        if distance_to_midline > 2.0 or cones_seen == 0:
+            novo_estado = "AS_EMERGENCY"
+            ebs_active = True
+
+    return novo_estado, ebs_active
+
+
     # TODO: Implementar a máquina de estados e o EBS
     raise NotImplementedError("Tarefa 5 por implementar!")
 

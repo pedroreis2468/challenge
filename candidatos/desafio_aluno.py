@@ -148,8 +148,20 @@ def controlador_pure_pursuit(car_state: CarState, waypoints: np.ndarray,
       * apps_percent: float entre 0.0% e 100.0%
       * brake_bar: float entre 0.0 bar e 80.0 bar
     """
+    # Pseudocódigo
+    # 1. Ponto de mira:
+    #    - Receber a lista dos waypoints.
+    #    - Calcular a distância entre o carro e cada waypoint.
+    #    - Escolher o ponto cuja distância está mais perto da lookahead distance
+    # 2. Ângulo de erro alpha:
+    #    - Aplicar a fórmula.
+    # 3. Ângulo de viragem delta:
+    #    - Aplicar a fórmula.
+
     # TODO: Implementar o Controlo Lateral e Longitudinal do monolugar
     raise NotImplementedError("Tarefa 3 por implementar!")
+
+
 
 
 # Estado persistente para filtro temporal (debounce de Wheel Lock)

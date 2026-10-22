@@ -314,13 +314,13 @@ def safety_state_machine_ebs(current_state: str, distance_to_midline: float,
       Exemplo: ("AS_DRIVING", False) ou ("AS_EMERGENCY", True)
     
     Pseudocodigo:
-    if estadoAtaul == "AAS_EMERGENCY"
+    if estado_atual == "AS_EMERGENCY":
         then ("AS_EMERGENCY", True)
 
-    if estadoAtual == "AS_READY":
+    if estado_atual == "AS_READY":
         if comando_arranque == True:
             then ("AS_DRIVING", False)
-        then (AS_READY, True)
+        then ("AS_READY", False)
 
     if estado_atual == "AS_DRIVING":
         if distancia_ao_centro > 2.0 OU cones_visiveis == 0:
@@ -331,10 +331,19 @@ def safety_state_machine_ebs(current_state: str, distance_to_midline: float,
     return (estado_atual, False)
     
     """
+    # A emergência tem prioridade e mantém-se bloqueada.
+    if current_state == "AS_EMERGENCY":
+        return "AS_EMERGENCY", True
 
+    if current_state == "AS_READY":
+        return ("AS_DRIVING" if mission_start_cmd else "AS_READY"), False
 
-    # TODO: Implementar a máquina de estados e o EBS
-    raise NotImplementedError("Tarefa 5 por implementar!")
+    if current_state == "AS_DRIVING" and (
+        distance_to_midline > 2.0 or cones_seen == 0
+    ):
+        return "AS_EMERGENCY", True
+
+    return current_state, False
 
 # =============================================================================
 # TAREFA BÓNUS [OPCIONAL - FUSÃO SENSORIAL & FAIL-SAFE GPS / ODOMETRIA]

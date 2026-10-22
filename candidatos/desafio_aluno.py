@@ -11,6 +11,8 @@ Instruções:
 =============================================================================
 """
 
+import math
+
 import numpy as np
 from typing import List, Dict, Tuple, Any
 import sys
@@ -48,7 +50,36 @@ def filtrar_e_classificar_cones(detections: List[Dict]) -> Tuple[np.ndarray, np.
       Se não houver cones de uma das cores, retornar np.empty((0, 2)).
     """
     # TODO: Implementar a filtragem, separação e ordenação vetorizada de cones
-    raise NotImplementedError("Tarefa 1 por implementar!")
+    
+    cones_azuis = []
+    cones_amarelos = []
+
+    for detection in detections:
+        if detection.get("confidence", 0.0) < 0.60:
+            continue
+
+        color = detection.get("color")
+        if color not in ("blue", "yellow"):
+            continue
+
+        try:
+            x = float(detection["x"])
+            y = float(detection["y"])
+        except (KeyError, TypeError, ValueError):
+            continue
+
+        if color == "blue":
+            cones_azuis.append([x, y])
+        else:
+            cones_amarelos.append([x, y])
+    
+    def ordenar_por_distancia(cones):
+        cones.sort(key=lambda point: math.hypot(point[0], point[1]))
+        if not cones:
+            return np.empty((0, 2), dtype=float)
+        return np.asarray(cones, dtype=float).reshape(-1, 2)
+
+    return ordenar_por_distancia(cones_azuis), ordenar_por_distancia(cones_amarelos)
 
 
 # =============================================================================

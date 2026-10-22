@@ -218,6 +218,8 @@ def analisar_dinamica_veiculo(telemetria: Dict[str, float]) -> Dict[str, Any]:
     """
     # TODO: Implementar a análise de telemetria veicular e lista de avisos
 
+    global _wheel_lock_samples
+
     v_car = telemetria["est_car_velocity"]
     v_fl = telemetria["fl_wheel_speed"]
     v_fr = telemetria["fr_wheel_speed"]
@@ -225,16 +227,17 @@ def analisar_dinamica_veiculo(telemetria: Dict[str, float]) -> Dict[str, Any]:
     v_rr = telemetria["rr_wheel_speed"]
     apps = telemetria["apps"]
     brake = telemetria["brake_pressure"]
+    accel_y = telemetria["accel_y"]
 
     if v_car > 1.0:
         fl_slip = (v_fl - v_car) / v_car
     else:
         fl_slip = 0.0
-        
+
     if v_car > 1.0:
-           fr_slip = (v_fr - v_car) / v_car
+        fr_slip = (v_fr - v_car) / v_car
     else:
-           fr_slip = 0.0
+        fr_slip = 0.0
 
     if v_car > 1.0:
         rl_slip = (v_rl - v_car) / v_car
@@ -249,14 +252,29 @@ def analisar_dinamica_veiculo(telemetria: Dict[str, float]) -> Dict[str, Any]:
     wheel_spin = apps > 10.0 and (rl_slip > 0.15 or rr_slip > 0.15)
 
     wheel_lock_condition = brake > 5.0 and (fl_slip < -0.20 or fr_slip < -0.20)
+    if wheel_lock_condition:
+        _wheel_lock_samples += 1
+    else:
+        _wheel_lock_samples = 0
+    wheel_lock = _wheel_lock_samples >= 3
+
+    lateral_g = accel_y / 9.81
+
+    avisos = []
+    if wheel_spin:
+        avisos.append("AVISO_WHEEL_SPIN")
+    if wheel_lock:
+        avisos.append("AVISO_WHEEL_LOCK")
+    if abs(lateral_g) > 1.4:
+        avisos.append("AVISO_HIGH_LATERAL_G")
 
     return {
         "rl_slip": float(rl_slip),
         "rr_slip": float(rr_slip),
         "wheel_spin_detected": bool(wheel_spin),
-        #"wheel_lock_detected": bool(wheel_lock),
-        #"lateral_g": float(lateral_g),
-        #"avisos": avisos,
+        "wheel_lock_detected": bool(wheel_lock),
+        "lateral_g": float(lateral_g),
+        "avisos": avisos,
     }
 
 

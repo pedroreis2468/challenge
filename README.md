@@ -145,10 +145,10 @@ challenge/
 >
 > Antes do final do desafio, preencham a lista abaixo assinalando com `[X]` quais as tarefas que concluíram e pretendem que a equipa técnica da FSUminho teste e avalie.
 
-- [ ] **Tarefa 1:** Filtragem, Classificação e Vetorização de Cones (Perceção)
+- [X] **Tarefa 1:** Filtragem, Classificação e Vetorização de Cones (Perceção)
 - [ ] **Tarefa 2:** Extração do Caminho Central / Midline (Planeamento)
-- [ ] **Tarefa 3:** Controlador Pure Pursuit & Pedais (Controlo Lateral & Longitudinal)
-- [ ] **Tarefa 4:** Telemetria e Análise de Dinâmica - Slip & Wheel Spin/Lock (ESW)
+- [X] **Tarefa 3:** Controlador Pure Pursuit & Pedais (Controlo Lateral & Longitudinal)
+- [X] **Tarefa 4:** Telemetria e Análise de Dinâmica - Slip & Wheel Spin/Lock (ESW)
 - [ ] **Tarefa 5:** Safety State Machine & EBS Watchdog (ESW)
 - [ ] **Tarefa Bónus 6 (Opcional):** Supervisão de Fusão Sensorial GPS vs Odometria (ESW)
 

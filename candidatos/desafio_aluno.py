@@ -125,6 +125,17 @@ def calcular_midline_trajetoria(
 # =============================================================================
 # TAREFA 3 [AS - CONTROLO]: Algoritmo de Direção Pure Pursuit & Controlo Longitudinal
 # =============================================================================
+
+def _get_state_value(car_state: Any, names: Tuple[str, ...], default: float = 0.0) -> float:
+    """Lê o primeiro atributo existente, permitindo nomes comuns no estado do carro."""
+    for name in names:
+        if hasattr(car_state, name):
+            try:
+                return float(getattr(car_state, name))
+            except (TypeError, ValueError):
+                pass
+    return default
+
 def controlador_pure_pursuit(
     car_state: CarState,
     waypoints: np.ndarray,
@@ -159,7 +170,51 @@ def controlador_pure_pursuit(
       * brake_bar: float entre 0.0 bar e 80.0 bar
     """
     # TODO: Implementar o Controlo Lateral e Longitudinal do monolugar
-    raise NotImplementedError("Tarefa 3 por implementar!")
+
+    points = np.asarray(waypoints, dtype=float).reshape(-1, 2)
+    if len(points) == 0:
+        return 0.0, 0.0, 80.0
+
+    x_car = _get_state_value(car_state, ("x", "x_m", "pos_x"))
+    y_car = _get_state_value(car_state, ("y", "y_m", "pos_y"))
+    heading = _get_state_value(car_state, ("heading", "yaw", "psi", "yaw_angle"))
+    speed = _get_state_value(car_state, ("speed", "velocity", "speed_mps", "v"))
+
+    # Só considerar pontos à frente, usando a projeção no vetor de orientação.
+    dx = points[:, 0] - x_car
+    dy = points[:, 1] - y_car
+    forward = dx * math.cos(heading) + dy * math.sin(heading)
+    ahead_indices = np.where(forward > 0.0)[0]
+
+    if len(ahead_indices) == 0:
+        return 0.0, 0.0, 80.0
+
+    distances = np.hypot(dx[ahead_indices], dy[ahead_indices])
+    target_index = ahead_indices[int(np.argmin(np.abs(distances - lookahead_distance)))]
+    target_x, target_y = points[target_index]
+
+    alpha = math.atan2(target_y - y_car, target_x - x_car) - heading
+    alpha = math.atan2(math.sin(alpha), math.cos(alpha))
+    target_distance = max(float(math.hypot(target_x - x_car, target_y - y_car)), 0.1)
+
+    steering = math.atan2(2.0 * wheelbase * math.sin(alpha), target_distance)
+    steering = max(-0.50, min(0.50, steering))
+
+    # Alvo de velocidade mais baixo quando a direção exigida é maior.
+    target_speed = 22.2 - 12.0 * min(abs(steering) / 0.50, 1.0)
+    target_speed = max(6.0, target_speed)
+
+    if speed < target_speed - 0.5:
+        throttle = min(100.0, max(0.0, (target_speed - speed) * 12.0))
+        brake = 0.0
+    elif speed > target_speed + 0.5:
+        throttle = 0.0
+        brake = min(80.0, (speed - target_speed) * 8.0)
+    else:
+        throttle = 15.0
+        brake = 0.0
+
+    return float(steering), float(throttle), float(brake)
 
 
 # Estado persistente para filtro temporal (debounce de Wheel Lock)
